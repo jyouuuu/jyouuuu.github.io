@@ -110,13 +110,21 @@
       const items = data.filter((p) => p.sec === sec);
       // comics/hypeforce pages read better compact — grid instead of giant feed
       const compact = sec === "comics";
+      // illustration is 7 portraits + 2 landscapes — in the single-column
+      // feed the portraits blow up to 780x1000+ cards. A masonry wall keeps
+      // every drawing at its natural aspect and a sane, uniform scale.
+      const wall = sec === "illus";
       const feed = document.createElement("div");
-      feed.className = compact ? "feed-grid" : "feed";
+      feed.className = compact ? "feed-grid" : wall ? "feed-wall" : "feed";
       items.forEach((p, i) => {
         const fig = document.createElement("figure");
-        fig.className = compact ? "feed-post feed-post--grid reveal" : "feed-post reveal";
+        fig.className = compact
+          ? "feed-post feed-post--grid reveal"
+          : wall
+            ? "feed-post feed-post--wall reveal"
+            : "feed-post reveal";
         const img = document.createElement("img");
-        img.src = compact ? p.t : p.f;
+        img.src = compact || wall ? p.t : p.f;
         img.alt = p.cap;
         img.loading = "lazy";
         img.decoding = "async";
@@ -141,17 +149,43 @@
   /* -------------------------------------------------- draw mode (chisel marker) */
   function initSpray() {
     const btn = document.getElementById("sprayBtn");
+    const undoBtn = document.getElementById("sprayUndo");
+    const clearBtn = document.getElementById("sprayClear");
     const cv = document.getElementById("sprayCanvas");
     if (!btn || !cv) return;
     const ctx = cv.getContext("2d");
     const COLORS = ["#ff2ea6", "#4ecfe0", "#ffe45b", "#a8e10c", "#7b5cff", "#ff2e63"];
     let on = false, ci = 0, lx = 0, ly = 0;
-    function size() { cv.width = innerWidth; cv.height = innerHeight; }
+
+    // strokes are kept as point lists (not pixels) so undo is cheap and
+    // the tags survive a window resize — repaint() redraws the wall.
+    let strokes = [];
+    const undoStack = []; // { t: "stroke" } | { t: "clear", before: [...] }
+    let cur = null;
+
+    function drawStroke(s) {
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 12;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(s.pts[0][0], s.pts[0][1]);
+      for (let i = 1; i < s.pts.length; i++) ctx.lineTo(s.pts[i][0], s.pts[i][1]);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    function repaint() {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      strokes.forEach(drawStroke);
+    }
+    function size() { cv.width = innerWidth; cv.height = innerHeight; repaint(); }
     size();
     window.addEventListener("resize", size);
 
     function stroke(x, y) {
-      ctx.strokeStyle = COLORS[ci % COLORS.length];
+      cur.pts.push([x, y]);
+      ctx.strokeStyle = cur.color;
       ctx.lineWidth = 12;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -164,26 +198,57 @@
       lx = x; ly = y;
     }
 
+    function undo() {
+      const a = undoStack.pop();
+      if (!a) return;
+      if (a.t === "stroke") strokes.pop();
+      else strokes = a.before; // un-clear
+      repaint();
+    }
+    function clearAll() {
+      if (!strokes.length) return;
+      undoStack.push({ t: "clear", before: strokes });
+      strokes = [];
+      repaint();
+    }
+
     let down = false;
     cv.addEventListener("pointerdown", (e) => {
       if (e.button === 2) return;
-      if (e.shiftKey) { ctx.clearRect(0, 0, cv.width, cv.height); return; }
+      if (e.shiftKey) { clearAll(); return; }
       down = true; ci++;
       lx = e.clientX; ly = e.clientY;
+      cur = { color: COLORS[ci % COLORS.length], pts: [[lx, ly]] };
       stroke(e.clientX + 0.01, e.clientY + 0.01); // dot for single taps
       const SFX = window.JIAN_SFX;
       if (SFX) SFX.thock();
     });
     cv.addEventListener("pointermove", (e) => { if (down) stroke(e.clientX, e.clientY); });
-    const up = () => { down = false; };
+    const up = () => {
+      if (!down) return;
+      down = false;
+      strokes.push(cur);
+      undoStack.push({ t: "stroke" });
+      cur = null;
+    };
     cv.addEventListener("pointerup", up);
     cv.addEventListener("pointercancel", up);
+
+    // ctrl/cmd+Z while tagging; UNDO / CLEAR buttons for touch (no shift, no keyboard)
+    window.addEventListener("keydown", (e) => {
+      if (!on) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
+    });
+    if (undoBtn) undoBtn.addEventListener("click", undo);
+    if (clearBtn) clearBtn.addEventListener("click", clearAll);
 
     btn.addEventListener("click", () => {
       on = !on;
       btn.classList.toggle("is-on", on);
       btn.textContent = on ? "DONE ★" : "DRAW ★";
       cv.classList.toggle("is-live", on);
+      if (undoBtn) undoBtn.classList.toggle("is-live", on);
+      if (clearBtn) clearBtn.classList.toggle("is-live", on);
     });
   }
 

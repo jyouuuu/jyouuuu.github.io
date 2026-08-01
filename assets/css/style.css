@@ -288,6 +288,19 @@ img { display: block; }
 .feed-post--grid img { aspect-ratio: 4/3; object-fit: cover; object-position: top; }
 .feed-post--grid figcaption b { font-size: 15px; }
 
+/* illustration wall (Aug 1, Justin: "properly scale the drawings in
+   illustration") — the illus section is 7 portraits + 2 landscapes, which
+   the 780px single-column feed rendered as ~1000px-tall giants. Masonry
+   columns: natural aspect, uniform width, no cropping. */
+.feed-wall { columns: 3 300px; column-gap: 14px; }
+.feed-wall .feed-post {
+  width: 100%;
+  margin: 0 0 14px;
+  break-inside: avoid;
+  display: inline-block; /* chrome column-split guard */
+}
+.feed-wall .feed-post img { width: 100%; height: auto; }
+
 /* ------------------------------------------------------- about */
 .about-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .box {
@@ -439,6 +452,12 @@ img { display: block; }
 }
 .spray-btn:hover { transform: translate(-2px, -3px) rotate(-1deg); background: var(--purple); }
 .spray-btn.is-on { background: var(--lime); color: var(--ink); }
+/* undo/clear tools — only visible while draw mode is on */
+.spray-btn--tool { display: none; background: var(--paper); color: var(--ink); }
+.spray-btn--tool:hover { background: var(--yellow); }
+.spray-btn--tool.is-live { display: block; }
+.spray-btn--undo { right: 128px; }
+.spray-btn--clear { right: 238px; }
 #sprayCanvas {
   position: fixed;
   inset: 0;
