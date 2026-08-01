@@ -108,13 +108,15 @@
     document.querySelectorAll("[data-sec]").forEach((host) => {
       const sec = host.dataset.sec;
       const items = data.filter((p) => p.sec === sec);
+      // comics/hypeforce pages read better compact — grid instead of giant feed
+      const compact = sec === "comics";
       const feed = document.createElement("div");
-      feed.className = "feed";
+      feed.className = compact ? "feed-grid" : "feed";
       items.forEach((p, i) => {
         const fig = document.createElement("figure");
-        fig.className = "feed-post reveal";
+        fig.className = compact ? "feed-post feed-post--grid reveal" : "feed-post reveal";
         const img = document.createElement("img");
-        img.src = p.f;
+        img.src = compact ? p.t : p.f;
         img.alt = p.cap;
         img.loading = "lazy";
         img.decoding = "async";
