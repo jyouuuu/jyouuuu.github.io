@@ -1,0 +1,209 @@
+/* ==========================================================================
+   justinyou.art — portfolio engine
+   work grid, zoom lightbox, spray mode, scroll reveals, hamburger nav
+   ========================================================================== */
+(function () {
+  "use strict";
+
+  function ready(fn) {
+    if (document.readyState !== "loading") fn();
+    else document.addEventListener("DOMContentLoaded", fn);
+  }
+
+  /* -------------------------------------------------- lightbox (zoom) --- */
+  const lb = {
+    el: null, img: null, cap: null, list: [], idx: 0,
+    scale: 1, tx: 0, ty: 0, panning: false, px: 0, py: 0,
+    build() {
+      if (this.el) return;
+      const el = document.createElement("div");
+      el.className = "lightbox";
+      el.innerHTML = `
+        <div class="lightbox__stage"><img class="lightbox__img" alt=""></div>
+        <div class="lightbox__cap"></div>
+        <div class="lb-zoomhint">scroll / pinch to zoom · drag to pan · double-click to reset</div>
+        <button class="lb-btn lb-btn--prev" aria-label="Previous">&lt;</button>
+        <button class="lb-btn lb-btn--next" aria-label="Next">&gt;</button>
+        <button class="lb-btn lb-btn--close" aria-label="Close">X</button>`;
+      document.body.appendChild(el);
+      this.el = el;
+      this.img = el.querySelector(".lightbox__img");
+      this.cap = el.querySelector(".lightbox__cap");
+      el.addEventListener("click", (e) => { if (e.target === el) this.close(); });
+      el.querySelector(".lb-btn--close").addEventListener("click", () => this.close());
+      el.querySelector(".lb-btn--prev").addEventListener("click", () => this.step(-1));
+      el.querySelector(".lb-btn--next").addEventListener("click", () => this.step(1));
+      window.addEventListener("keydown", (e) => {
+        if (!el.classList.contains("is-open")) return;
+        if (e.key === "Escape") this.close();
+        if (e.key === "ArrowLeft") this.step(-1);
+        if (e.key === "ArrowRight") this.step(1);
+      });
+      el.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        this.zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15);
+      }, { passive: false });
+      this.img.addEventListener("dblclick", () => {
+        if (this.scale > 1.2) this.resetZoom(); else { this.scale = 2.5; this.apply(); }
+      });
+      this.img.addEventListener("pointerdown", (e) => {
+        if (this.scale <= 1) return;
+        this.panning = true; this.px = e.clientX; this.py = e.clientY;
+        this.img.setPointerCapture(e.pointerId);
+        this.img.style.cursor = "grabbing";
+      });
+      this.img.addEventListener("pointermove", (e) => {
+        if (!this.panning) return;
+        this.tx += e.clientX - this.px; this.ty += e.clientY - this.py;
+        this.px = e.clientX; this.py = e.clientY;
+        this.apply();
+      });
+      const stop = () => { this.panning = false; this.img.style.cursor = "grab"; };
+      this.img.addEventListener("pointerup", stop);
+      this.img.addEventListener("pointercancel", stop);
+    },
+    zoom(f) {
+      this.scale = Math.min(6, Math.max(1, this.scale * f));
+      if (this.scale === 1) { this.tx = 0; this.ty = 0; }
+      this.apply();
+    },
+    apply() {
+      this.img.style.transform = `translate(${this.tx}px, ${this.ty}px) scale(${this.scale})`;
+    },
+    resetZoom() { this.scale = 1; this.tx = 0; this.ty = 0; this.apply(); },
+    open(list, idx) {
+      this.build();
+      this.list = list;
+      this.idx = idx;
+      this.resetZoom();
+      this.show();
+      this.el.classList.add("is-open");
+      document.body.style.overflow = "hidden";
+    },
+    show() {
+      const p = this.list[this.idx];
+      this.img.src = p.f;
+      this.img.alt = p.cap;
+      this.cap.innerHTML = `${p.cap} &nbsp;·&nbsp; <b>${p.credit}</b> &nbsp;·&nbsp; ${this.idx + 1}/${this.list.length}`;
+      this.resetZoom();
+      [1, -1].forEach((d) => {
+        const q = this.list[(this.idx + d + this.list.length) % this.list.length];
+        if (q) new Image().src = q.f;
+      });
+    },
+    step(d) {
+      this.idx = (this.idx + d + this.list.length) % this.list.length;
+      this.show();
+    },
+    close() {
+      this.el.classList.remove("is-open");
+      document.body.style.overflow = "";
+    },
+  };
+  window.JY_LB = lb;
+
+  /* -------------------------------------------------- work grid --------- */
+  function buildGrids() {
+    const data = window.JY_WORK || [];
+    document.querySelectorAll("[data-sec]").forEach((host) => {
+      const sec = host.dataset.sec;
+      const items = data.filter((p) => p.sec === sec);
+      const grid = document.createElement("div");
+      grid.className = "work-grid";
+      items.forEach((p, i) => {
+        const card = document.createElement("button");
+        card.className = "work-card";
+        card.type = "button";
+        card.innerHTML = `
+          <img src="${p.t}" alt="${p.cap}" loading="lazy" decoding="async">
+          <div class="work-card__cap">
+            <div class="work-card__title"></div>
+            <div class="work-card__credit"></div>
+          </div>`;
+        card.querySelector(".work-card__title").textContent = p.cap;
+        card.querySelector(".work-card__credit").textContent = p.credit;
+        card.addEventListener("click", () => lb.open(items, i));
+        grid.appendChild(card);
+      });
+      host.appendChild(grid);
+      const count = document.querySelector(`[data-count="${sec}"]`);
+      if (count) count.textContent = `${items.length} pieces`;
+    });
+  }
+
+  /* -------------------------------------------------- spray mode -------- */
+  function initSpray() {
+    const btn = document.getElementById("sprayBtn");
+    const cv = document.getElementById("sprayCanvas");
+    if (!btn || !cv) return;
+    const ctx = cv.getContext("2d");
+    const COLORS = ["#ff2ea6", "#4ecfe0", "#ffe45b", "#a8e10c", "#7b5cff", "#e6402e"];
+    let on = false, ci = 0;
+    function size() { cv.width = innerWidth; cv.height = innerHeight; }
+    size();
+    window.addEventListener("resize", size);
+
+    function spray(x, y) {
+      for (let k = 0; k < 7; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * 16;
+        const s = 1 + Math.random() * 3.2;
+        ctx.fillStyle = COLORS[ci % COLORS.length];
+        ctx.globalAlpha = 0.55 + Math.random() * 0.4;
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    let down = false;
+    cv.addEventListener("pointerdown", (e) => {
+      if (e.button === 2) return;
+      if (e.shiftKey) { ctx.clearRect(0, 0, cv.width, cv.height); return; }
+      down = true; ci++;
+      spray(e.clientX, e.clientY);
+    });
+    cv.addEventListener("pointermove", (e) => { if (down) spray(e.clientX, e.clientY); });
+    const up = () => { down = false; };
+    cv.addEventListener("pointerup", up);
+    cv.addEventListener("pointercancel", up);
+
+    btn.addEventListener("click", () => {
+      on = !on;
+      btn.classList.toggle("is-on", on);
+      btn.textContent = on ? "DONE ★" : "SPRAY ★";
+      cv.classList.toggle("is-live", on);
+    });
+  }
+
+  /* -------------------------------------------------- reveals + nav ----- */
+  ready(function () {
+    buildGrids();
+    initSpray();
+
+    // standalone images that open the lightbox solo
+    document.querySelectorAll("[data-lb-single]").forEach((img) => {
+      img.addEventListener("click", () => {
+        lb.open([{ f: img.src, cap: img.alt, credit: "GRUNGE · original game" }], 0);
+      });
+    });
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("is-in"); io.unobserve(e.target); } });
+    }, { threshold: 0.08 });
+    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+    const menuBtn = document.querySelector(".nav-btn--menu");
+    const navbar = document.querySelector(".navbar");
+    if (menuBtn && navbar) {
+      menuBtn.addEventListener("click", () => {
+        const open = navbar.classList.toggle("is-open");
+        menuBtn.textContent = open ? "CLOSE ✕" : "MENU ☰";
+      });
+      navbar.querySelectorAll("a.nav-btn").forEach((a) => {
+        a.addEventListener("click", () => { navbar.classList.remove("is-open"); menuBtn.textContent = "MENU ☰"; });
+      });
+    }
+  });
+})();
