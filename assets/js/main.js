@@ -136,30 +136,30 @@
     });
   }
 
-  /* -------------------------------------------------- spray mode -------- */
+  /* -------------------------------------------------- draw mode (chisel marker) */
   function initSpray() {
     const btn = document.getElementById("sprayBtn");
     const cv = document.getElementById("sprayCanvas");
     if (!btn || !cv) return;
     const ctx = cv.getContext("2d");
-    const COLORS = ["#ff2ea6", "#4ecfe0", "#ffe45b", "#a8e10c", "#7b5cff", "#e6402e"];
-    let on = false, ci = 0;
+    const COLORS = ["#ff2ea6", "#4ecfe0", "#ffe45b", "#a8e10c", "#7b5cff", "#ff2e63"];
+    let on = false, ci = 0, lx = 0, ly = 0;
     function size() { cv.width = innerWidth; cv.height = innerHeight; }
     size();
     window.addEventListener("resize", size);
 
-    function spray(x, y) {
-      for (let k = 0; k < 7; k++) {
-        const a = Math.random() * Math.PI * 2;
-        const r = Math.random() * 16;
-        const s = 1 + Math.random() * 3.2;
-        ctx.fillStyle = COLORS[ci % COLORS.length];
-        ctx.globalAlpha = 0.55 + Math.random() * 0.4;
-        ctx.beginPath();
-        ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, s, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    function stroke(x, y) {
+      ctx.strokeStyle = COLORS[ci % COLORS.length];
+      ctx.lineWidth = 12;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(x, y);
+      ctx.stroke();
       ctx.globalAlpha = 1;
+      lx = x; ly = y;
     }
 
     let down = false;
@@ -167,9 +167,12 @@
       if (e.button === 2) return;
       if (e.shiftKey) { ctx.clearRect(0, 0, cv.width, cv.height); return; }
       down = true; ci++;
-      spray(e.clientX, e.clientY);
+      lx = e.clientX; ly = e.clientY;
+      stroke(e.clientX + 0.01, e.clientY + 0.01); // dot for single taps
+      const SFX = window.JIAN_SFX;
+      if (SFX) SFX.thock();
     });
-    cv.addEventListener("pointermove", (e) => { if (down) spray(e.clientX, e.clientY); });
+    cv.addEventListener("pointermove", (e) => { if (down) stroke(e.clientX, e.clientY); });
     const up = () => { down = false; };
     cv.addEventListener("pointerup", up);
     cv.addEventListener("pointercancel", up);
@@ -177,7 +180,7 @@
     btn.addEventListener("click", () => {
       on = !on;
       btn.classList.toggle("is-on", on);
-      btn.textContent = on ? "DONE ★" : "SPRAY ★";
+      btn.textContent = on ? "DONE ★" : "DRAW ★";
       cv.classList.toggle("is-live", on);
     });
   }
@@ -186,6 +189,24 @@
   ready(function () {
     buildGrids();
     initSpray();
+
+    // sound — hover ticks + press thocks + toggle (engine in sfx.js)
+    const SFX = window.JIAN_SFX;
+    if (SFX) {
+      document.querySelectorAll(".nav-btn:not(.nav-btn--sound):not(.nav-btn--menu), .btn, .client-chip, .feed-post, .feature__shot img, .contact__mail").forEach((el) => {
+        el.addEventListener("pointerenter", (e) => { if (e.pointerType !== "touch") SFX.tick(); });
+        el.addEventListener("pointerdown", () => SFX.thock());
+      });
+      document.querySelectorAll(".nav-btn--sound").forEach((btn) => {
+        btn.setAttribute("aria-pressed", SFX.isEnabled() ? "true" : "false");
+        btn.textContent = SFX.isEnabled() ? "SOUND: ON" : "SOUND: OFF";
+        btn.addEventListener("click", () => {
+          const onNow = SFX.toggle();
+          btn.setAttribute("aria-pressed", onNow ? "true" : "false");
+          btn.textContent = onNow ? "SOUND: ON" : "SOUND: OFF";
+        });
+      });
+    }
 
     // standalone images that open the lightbox solo
     document.querySelectorAll("[data-lb-single]").forEach((img) => {

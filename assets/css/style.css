@@ -14,10 +14,11 @@
   --grey-soft: #e3e2da;
   --yellow: #ffcc5b;
   --pink: #ff2ea6;
-  --red: #e6402e;
+  --red: #ff2e63;            /* hot ZZZ pink — the avatar-poster field */
   --lime: #a8e10c;
   --purple: #7b5cff;
   --cyan: #4ecfe0;
+  --teal: #19c2a6;
   --green: #35d977;
   --shadow: var(--ink);
   --font-shout: "Anton", sans-serif;
@@ -111,6 +112,9 @@ img { display: block; }
 .nav-btn--resume { background: var(--lime); }
 .nav-btn--email { background: var(--pink); color: #fff; }
 .nav-btn--menu { display: none; }
+.nav-btn--sound { flex: 0 1 auto; background: var(--ink); color: #fff; font-size: 13px; }
+.nav-btn--sound[aria-pressed="true"] { background: var(--green); color: #062a12; }
+.nav-btn--sound[aria-pressed="false"] { opacity: 0.85; }
 
 /* ---------------------------------------------------------------- hero */
 .poster {
@@ -130,7 +134,7 @@ img { display: block; }
   padding: 4vh 10px 2vh;
   user-select: none;
   /* his art lives INSIDE the letters — TETSUO poster style */
-  background: url("../../art/02-the-citizens-of-aquacity-cast-lineup.webp") center 30% / cover;
+  background: url("../../art/21-aquacity-diner-story-moment.webp") center 42% / cover;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -449,9 +453,9 @@ img { display: block; }
   .navbar { gap: 6px; }
   .nav-btn { font-size: 13px; height: 42px; }
   .nav-btn--menu { display: flex; flex: 1 1 auto; }
-  .navbar .nav-btn:not(.nav-btn--menu) { display: none; }
+  .navbar .nav-btn:not(.nav-btn--menu):not(.nav-btn--sound) { display: none; }
   .navbar.is-open { display: grid; grid-template-columns: 1fr 1fr; }
-  .navbar.is-open .nav-btn { display: flex; }
+  .navbar.is-open .nav-btn:not(.nav-btn--menu) { display: flex; }
   .navbar.is-open .nav-btn--menu { grid-column: 1 / -1; }
   .poster__word { font-size: clamp(56px, 17vw, 120px); -webkit-text-stroke-width: 2px; }
   .poster__band { padding: 12px 12px 16px; }
