@@ -102,30 +102,35 @@
   };
   window.JY_LB = lb;
 
-  /* -------------------------------------------------- work grid --------- */
+  /* -------------------------------------------------- work feed --------- */
   function buildGrids() {
     const data = window.JY_WORK || [];
     document.querySelectorAll("[data-sec]").forEach((host) => {
       const sec = host.dataset.sec;
       const items = data.filter((p) => p.sec === sec);
-      const grid = document.createElement("div");
-      grid.className = "work-grid";
+      const feed = document.createElement("div");
+      feed.className = "feed";
       items.forEach((p, i) => {
-        const card = document.createElement("button");
-        card.className = "work-card";
-        card.type = "button";
-        card.innerHTML = `
-          <img src="${p.t}" alt="${p.cap}" loading="lazy" decoding="async">
-          <div class="work-card__cap">
-            <div class="work-card__title"></div>
-            <div class="work-card__credit"></div>
-          </div>`;
-        card.querySelector(".work-card__title").textContent = p.cap;
-        card.querySelector(".work-card__credit").textContent = p.credit;
-        card.addEventListener("click", () => lb.open(items, i));
-        grid.appendChild(card);
+        const fig = document.createElement("figure");
+        fig.className = "feed-post reveal";
+        const img = document.createElement("img");
+        img.src = p.f;
+        img.alt = p.cap;
+        img.loading = "lazy";
+        img.decoding = "async";
+        const cap = document.createElement("figcaption");
+        const b = document.createElement("b");
+        b.textContent = p.cap;
+        const span = document.createElement("span");
+        span.textContent = p.credit;
+        cap.appendChild(b);
+        cap.appendChild(span);
+        fig.appendChild(img);
+        fig.appendChild(cap);
+        fig.addEventListener("click", () => lb.open(items, i));
+        feed.appendChild(fig);
       });
-      host.appendChild(grid);
+      host.appendChild(feed);
       const count = document.querySelector(`[data-count="${sec}"]`);
       if (count) count.textContent = `${items.length} pieces`;
     });
