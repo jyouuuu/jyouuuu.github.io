@@ -8,3 +8,4 @@ out/
 *.jpeg
 *.webp
 *.gif
+__pycache__/
