@@ -16,7 +16,7 @@ What it guarantees
 
 Usage
   python3 compose_sheets.py REFS_DIR OUT_DIR [--cols 3] [--rows 4] [--title TATS]
-                            [--no-trim] [--no-labels] [--max-dpi 600]
+                            [--per-page N] [--no-trim] [--no-labels] [--max-dpi 600]
 
 REFS_DIR holds the images (jpg/png/webp/gif/...). If it contains a manifest.json
 (a list of {"file": ...} entries, as written by the fetch step) that order is
@@ -165,9 +165,9 @@ def draw_header(c, g, title, page_no, pages):
     c.line(g.margin, rule_y, g.page_w - g.margin, rule_y)
 
 
-def compose(items, out_pdf, title, cols, rows, labels, max_dpi):
+def compose(items, out_pdf, title, cols, rows, labels, max_dpi, per_page=None):
     g = Grid(cols, rows, labels)
-    per_page = cols * rows
+    per_page = min(per_page or cols * rows, cols * rows)
     pages = max(1, math.ceil(len(items) / per_page))
     c = canvas.Canvas(out_pdf, pagesize=letter, pageCompression=1)
     c.setTitle("%s practice sheets" % title)
@@ -236,6 +236,8 @@ def main():
     ap.add_argument("--no-trim", dest="trim", action="store_false")
     ap.add_argument("--no-labels", dest="labels", action="store_false")
     ap.add_argument("--max-dpi", type=float, default=600.0)
+    ap.add_argument("--per-page", type=int, default=None,
+                    help="designs per page (<= cols*rows); a short last row is centred")
     ap.add_argument("--preview-dpi", type=int, default=110)
     a = ap.parse_args()
 
@@ -249,7 +251,8 @@ def main():
 
     stem = "%s_practice_sheets_letter" % a.title.replace(" ", "_")
     pdf = os.path.join(a.out_dir, stem + ".pdf")
-    report, pages = compose(items, pdf, a.title, a.cols, a.rows, a.labels, a.max_dpi)
+    report, pages = compose(items, pdf, a.title, a.cols, a.rows, a.labels,
+                            a.max_dpi, a.per_page)
     with open(os.path.join(a.out_dir, "report.json"), "w", encoding="utf-8") as f:
         json.dump({"pdf": os.path.basename(pdf), "pages": pages,
                    "grid": [a.cols, a.rows], "designs": report}, f, indent=1)
