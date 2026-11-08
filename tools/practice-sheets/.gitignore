@@ -1,0 +1,10 @@
+# Reference images and generated sheets stay local: they contain other artists' work
+# and this repository is public.
+refs/
+out/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
